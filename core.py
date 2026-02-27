@@ -25,19 +25,11 @@ class Tensor:
     def __repr__(self):
         return f"Tensor(data={self.data}, op='{self._op}')"
 
+    # 파이썬 매직 메서드: a * b를 할 때 자동으로 호출됨
+    def __mul__(self, other):
+        # 숫자가 들어오면 Tensor 객체로 감싸줌
+        other = other if isinstance(other, Tensor) else Tensor(other)
 
-if __name__ == '__main__':
-    # 텐서 a와 b 생성
-    a = Tensor([2.0])
-    b = Tensor([3.0])
-
-    # 덧셈 연산 발생! (이 순간 __add__ 가 호출됨)
-    c = a + b
-
-    print("a =", a)
-    print("b =", b)
-    print("c (a + b) =", c)
-    print("-" * 30)
-    print("c가 기억하는 부모 노드들 (어떻게 만들어졌는가?):")
-    for parent in c._prev:
-        print(" ->", parent)
+        # 두 데이터를 곱한 새로운 Tensor를 만들고, 부모와 연산자('*')를 기록함
+        out = Tensor(self.data * other.data, (self, other), '*')
+        return out
