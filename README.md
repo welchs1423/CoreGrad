@@ -1,9 +1,42 @@
 # 🧠 CoreGrad
 
-파이썬(Python)과 NumPy만으로 밑바닥부터 구현하는 딥러닝 자동 미분(Autograd) 엔진입니다.
+파이썬(Python)과 NumPy만으로 밑바닥부터 구현하는 딥러닝 자동 미분(Autograd) 엔진입니다. 거대 프레임워크의 도움 없이 순수 수학과 로직으로 텐서(Tensor) 연산 코어를 구축합니다.
 
-## 🚀 진행 상황
-* [x] Python 3.11 및 NumPy 가상환경 세팅 완료
-* [x] 계산 그래프(Computational Graph)를 기억하는 기본 `Tensor` 객체 설계
-* [x] 텐서 간 덧셈(`__add__`) 연산 및 부모 노드 추적 기능 구현
-* [x] 텐서 간 곱셈(`__mul__`) 연산 구현 및 복합 연산(선형 계층 기초) 테스트 완료
+---
+
+### 🛠️ Tech Stack
+* **Language:** Python 3.11+
+* **Library:** NumPy (다차원 배열 연산 및 행렬 계산)
+* **Core Concepts:** * **Computational Graph:** 연산 과정을 그래프 형태로 추적
+    * **Reverse-mode Autograd:** 역전파를 통한 자동 미분 구현
+    * **Topological Sort:** 위상 정렬을 활용한 정확한 연산 순서 제어
+
+---
+
+### 🚀 진행 상황
+* [x] Python 3.11 및 NumPy 기반 환경 구축
+* [x] 연산 그래프 추적 가능한 `Tensor` 객체 설계
+* [x] **자동 미분(Autograd) 엔진: 위상 정렬 및 역전파 구현 완료**
+* [x] 복합 연산 그래프(y = ab + bc) 기울기 검증 성공
+
+---
+
+### 💻 실행 예시 (y = ab + bc)
+```python
+from core import Tensor
+
+# 텐서 생성
+a = Tensor([2.0])
+b = Tensor([3.0])
+c = Tensor([4.0])
+
+# 계산 그래프 구성 (Forward)
+y = (a * b) + (b * c)  # 18.0
+
+# 자동 미분 실행 (Backward)
+y.backward()
+
+# 기울기(Gradient) 확인
+print(a.grad) # [3.]
+print(b.grad) # [6.] (a + c)
+print(c.grad) # [3.]

@@ -1,35 +1,93 @@
 import numpy as np
 
+
 class Tensor:
     def __init__(self, data, _children=(), _op=''):
-        # 1. 실제 데이터 (NumPy 배열로 래핑하여 고속 연산 준비)
         self.data = np.array(data, dtype=np.float32)
-
-        # 2. 기울기(미분값)를 저장할 변수 (초기값은 0)
+        # 기울기(미분값)를 저장할 변수, 0으로 초기화
         self.grad = np.zeros_like(self.data)
 
-        # 3.계산 그래프(Computational Graph)를 그리기 위한 핵심 요소
-        # 자신이 어떤 텐서들을 통해(_prev), 어떤 연산(_op)으로 만들어졌는지 기억함
+        # 계산 그래프 구조
         self._prev = set(_children)
         self._op = _op
 
-    # 파이썬 매직 메서드: a + b를 할 때 자동으로 호출됩니다.
+        # 나중에 미분될 때 부모 노드들에게 기울기를 어떻게 분배할지 정의하는 콜백 함수
+        # 초기에는 아무것도 하지 않음 (leaf node)
+        self._backward = lambda: None
+
     def __add__(self, other):
-        # 숫자가 들어오면 Tensor 객체로 감싸줌.
         other = other if isinstance(other, Tensor) else Tensor(other)
-
-        # 두 데이터를 더한 새로운 Tensor를 만들되, '자신'과 'other'를 부모로 기록
         out = Tensor(self.data + other.data, (self, other), '+')
-        return out
-    # 객체를 출력할때 예쁘게 보여주기 위한 메서든
-    def __repr__(self):
-        return f"Tensor(data={self.data}, op='{self._op}')"
 
-    # 파이썬 매직 메서드: a * b를 할 때 자동으로 호출됨
+        def _backward():
+            # 덧셈: 내 기울기(out.grad)를 부모들에게 그대로(1.0) 더해준다.
+            self.grad += 1.0 * out.grad
+            other.grad += 1.0 * out.grad
+
+        out._backward = _backward
+
+        return out
+
     def __mul__(self, other):
-        # 숫자가 들어오면 Tensor 객체로 감싸줌
         other = other if isinstance(other, Tensor) else Tensor(other)
-
-        # 두 데이터를 곱한 새로운 Tensor를 만들고, 부모와 연산자('*')를 기록함
         out = Tensor(self.data * other.data, (self, other), '*')
+
+        def _backward():
+            # 곱셈: Chain Rule! 상대방의 값(data)에 내 기울기(out.grad)를 곱해서 더해준다.
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+
+        out._backward = _backward
+
         return out
+
+    # 🚀 대망의 자동 미분 기능
+    def backward(self):
+        # 1. 위상 정렬 (Topological Sort)
+        # 그래프를 재귀적으로 탐색하면서, 모든 자식 노드가 먼저 추가된 후에 부모 노드가 추가되도록 순서를 보장합니다.
+        topo = []
+        visited = set()
+
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._prev:
+                    build_topo(child)
+                topo.append(v)
+
+        # 최종 노드인 '나(self)'부터 역순 탐색 시작
+        build_topo(self)
+
+        # 2. 마지막 결과물의 기울기는 무조건 1.0부터 시작합니다 (de/de = 1)
+        self.grad = np.array([1.0], dtype=np.float32)
+
+        # 3. 위상 정렬된 리스트를 거꾸로(reversed) 순회하며, 각 노드에 저장된 미분 규칙(_backward)을 차례대로 실행합니다!
+        for v in reversed(topo):
+            v._backward()
+
+    def __repr__(self):
+        return f"Tensor(data={self.data}, grad={self.grad}, op='{self._op}')"
+
+
+# =========================================
+# 실행 테스트
+# =========================================
+if __name__ == '__main__':
+    # 1. 신경망 모형 세팅: y = a*b + b*c
+    a = Tensor([2.0])
+    b = Tensor([3.0])
+    c = Tensor([4.0])
+
+    # 2. Forward (계산 실행)
+    ab = a * b
+    bc = b * c
+    y = ab + bc
+
+    # 3. Backward (자동 미분 실행)
+    y.backward()
+
+    # 4. 결과 출력
+    print(f"최종 결과 y: {y.data}")
+    print(f"dy/da: {a.grad}")  # 정답: 3.0 (b의 값)
+    print(f"dy/db: {b.grad}")  # 정답: 6.0 (a + c의 값) -> b가 양쪽 연산에 모두 참여했으므로!
+    print(f"dy/dc: {c.grad}")  # 정답: 3.0 (b의 값)
