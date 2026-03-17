@@ -116,18 +116,35 @@ class Layer(Module):
             params.extend(neuron.parameters())
         return params
 
+class MLP(Module):
+    def __init__(self, nin, nouts):
+        # nin: input dimension
+        # nouts: list of output dimensions for each layer
+        sz = [nin] + nouts
+        self.layers = [Layer(sz[i], sz[i+1]) for i in range(len(nouts))]
+
+    def __call__(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+    def parameters(self):
+        return [p for layer in self.layers for p in layer.parameters()]
+
 
 if __name__ == '__main__':
-    # input size 3, output size 4 (4 neurons)
-    layer = Layer(3, 4)
+    # Input data
     x = [Tensor(2.0), Tensor(3.0), Tensor(-1.0)]
 
+    # MLP architecture: 3 inputs -> [4 hidden -> 4 hidden -> 1 output]
+    nouts = [4, 4, 1]
+    model = MLP(3, nouts)
+
     # Forward Pass
-    out = layer(x)
+    out = model(x)
 
-    # Backward Pass (using the first output for test)
-    out[0].backward()
+    # Backward Pass
+    out.backward()
 
-    print(f"Layer outputs length: {len(out)}")
-    print(f"Total parameters in this layer: {len(layer.parameters())}")
-    print(f"Gradient of the first weight in the first neuron: {layer.neurons[0].w[0].grad}")
+    print(f"MLP output result: {out.data}")
+    print(f"Total trainable parameters in this MLP: {len(model.parameters())}")
