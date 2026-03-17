@@ -100,17 +100,34 @@ class Neuron(Module):
         # 이 뉴런이 가진 학습 가능한 변수(w, b)들을 반환합니다.
         return self.w + [self.b]
 
+class Layer(Module):
+    def __init__(self, nin, nout):
+        # nin: input dimension
+        # nout: number of neurons in this layer
+        self.neurons = [Neuron(nin) for _ in range(nout)]
+
+    def __call__(self, x):
+        outs = [n(x) for n in self.neurons]
+        return outs[0] if len(outs) == 1 else outs
+
+    def parameters(self):
+        params = []
+        for neuron in self.neurons:
+            params.extend(neuron.parameters())
+        return params
+
 
 if __name__ == '__main__':
-    n = Neuron(3)
-
+    # input size 3, output size 4 (4 neurons)
+    layer = Layer(3, 4)
     x = [Tensor(2.0), Tensor(3.0), Tensor(-1.0)]
 
-    y = n(x)
+    # Forward Pass
+    out = layer(x)
 
-    y.backward()
+    # Backward Pass (using the first output for test)
+    out[0].backward()
 
-    print(f"뉴런의 출력값: {y.data}")
-    print(f"첫 번째 가중치(w0)의 기울기: {n.w[0].grad}")
-    print("-" * 30)
-    print(f"뉴런이 가진 총 파라미터 개수: {len(n.parameters())}")
+    print(f"Layer outputs length: {len(out)}")
+    print(f"Total parameters in this layer: {len(layer.parameters())}")
+    print(f"Gradient of the first weight in the first neuron: {layer.neurons[0].w[0].grad}")
