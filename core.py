@@ -3,6 +3,16 @@ import random
 
 
 class Tensor:
+
+    def relu(self):
+        out = Tensor(np.maximum(0, self.data), (self,), 'ReLU')
+
+        def _backward():
+            self.grad += (out.data > 0) * out.grad
+
+        out._backward = _backward
+        return out
+
     def __init__(self, data, _children=(), _op=''):
         self.data = np.array(data, dtype=np.float32)
         # 기울기(미분값)를 저장할 변수, 0으로 초기화
@@ -29,6 +39,9 @@ class Tensor:
 
         return out
 
+    def __radd__(self, other):
+        return self + other
+
     def __mul__(self, other):
         other = other if isinstance(other, Tensor) else Tensor(other)
         out = Tensor(self.data * other.data, (self, other), '*')
@@ -42,26 +55,26 @@ class Tensor:
 
         return out
 
-        # 뺄셈 (self - other)
-        def __sub__(self, other):
-            return self + (-other)
+    # 뺄셈 (self - other)
+    def __sub__(self, other):
+        return self + (-other)
 
-        # 부호 반전 (-self) -> 뺄셈 구현을 위해 필요합니다.
-        def __neg__(self):
+    # 부호 반전 (-self) -> 뺄셈 구현을 위해 필요합니다.
+    def __neg__(self):
             return self * -1
 
-        # 거듭제곱 (self ** other) -> MSE Loss 계산용
-        def __pow__(self, other):
-            assert isinstance(other, (int, float)), "현재는 숫자 지수만 지원합니다."
-            out = Tensor(self.data ** other, (self,), f'**{other}')
+    # 거듭제곱 (self ** other) -> MSE Loss 계산용
+    def __pow__(self, other):
+        assert isinstance(other, (int, float)), "현재는 숫자 지수만 지원합니다."
+        out = Tensor(self.data ** other, (self,), f'**{other}')
 
-            def _backward():
-                # x**n 미분: n * x**(n-1) * out.grad
-                self.grad += (other * self.data ** (other - 1)) * out.grad
+        def _backward():
+            # x**n 미분: n * x**(n-1) * out.grad
+            self.grad += (other * self.data ** (other - 1)) * out.grad
 
-            out._backward = _backward
+        out._backward = _backward
 
-            return out
+        return out
 
     # 🚀 대망의 자동 미분 기능
     def backward(self):
@@ -111,11 +124,8 @@ class Neuron(Module):
         self.b = Tensor(0)
 
     def __call__(self, x):
-        # x: 입력 리스트 [x1, x2, ...]
-        # w*x + b 연산을 수행합니다.
         act = sum((wi * xi for wi, xi in zip(self.w, x)), self.b)
-        # 나중에 비선형성을 위해 .relu()를 붙일 수 있습니다. (지금은 일단 선형으로!)
-        return act
+        return act.relu()  # 여기서 꺾어줍니다!
 
     def parameters(self):
         # 이 뉴런이 가진 학습 가능한 변수(w, b)들을 반환합니다.
@@ -169,7 +179,7 @@ if __name__ == '__main__':
 
     # 3. 학습 루프 (Training Loop)
     epochs = 20
-    learning_rate = 0.05
+    learning_rate = 0.01
 
     print(f"--- 학습 시작 (Total Params: {len(model.parameters())}) ---")
 
@@ -179,7 +189,8 @@ if __name__ == '__main__':
 
         # 3-2. Loss Function: 평균 제곱 오차 (MSE) 계산
         # Loss = sum((yout - ygt)^2)
-        loss = sum((yout - ygt) ** 2 for ygt, yout in zip(ys, ypred))
+        # 시작값을 0.0(float)으로만 지정해줘도 파이썬이 자동으로 Tensor 연산으로 유도합니다.
+        loss = sum(((yout - ygt) ** 2 for ygt, yout in zip(ys, ypred)), 0.0)
 
         # 3-3. Zero Grad: 이전 단계의 기울기 초기화
         model.zero_grad()
