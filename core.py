@@ -133,18 +133,48 @@ class MLP(Module):
 
 
 if __name__ == '__main__':
-    # Input data
-    x = [Tensor(2.0), Tensor(3.0), Tensor(-1.0)]
+    # 1. 간단한 데이터셋 구성 (입력 X, 정답 y)
+    # 입력 데이터: 4개의 샘플 (각 3차원)
+    xs = [
+        [2.0, 3.0, -1.0],
+        [3.0, -1.0, 0.5],
+        [0.5, 1.0, 1.0],
+        [1.0, 1.0, -1.0],
+    ]
+    ys = [1.0, -1.0, -1.0, 1.0]  # 각 샘플의 정답(Target)
 
-    # MLP architecture: 3 inputs -> [4 hidden -> 4 hidden -> 1 output]
-    nouts = [4, 4, 1]
-    model = MLP(3, nouts)
+    # 2. 모델 초기화 (3입력 -> 4은닉 -> 4은닉 -> 1출력)
+    model = MLP(3, [4, 4, 1])
 
-    # Forward Pass
-    out = model(x)
+    # 3. 학습 루프 (Training Loop)
+    epochs = 20
+    learning_rate = 0.05
 
-    # Backward Pass
-    out.backward()
+    print(f"--- 학습 시작 (Total Params: {len(model.parameters())}) ---")
 
-    print(f"MLP output result: {out.data}")
-    print(f"Total trainable parameters in this MLP: {len(model.parameters())}")
+    for k in range(epochs):
+        # 3-1. Forward Pass: 모델을 통해 예측값 계산
+        ypred = [model(x) for x in xs]
+
+        # 3-2. Loss Function: 평균 제곱 오차 (MSE) 계산
+        # Loss = sum((yout - ygt)^2)
+        loss = sum((yout - ygt) ** 2 for ygt, yout in zip(ys, ypred))
+
+        # 3-3. Zero Grad: 이전 단계의 기울기 초기화
+        model.zero_grad()
+
+        # 3-4. Backward Pass: 역전파 실행
+        loss.backward()
+
+        # 3-5. Update (SGD): 기울기 반대 방향으로 파라미터 이동
+        for p in model.parameters():
+            p.data += -learning_rate * p.grad
+
+        if k % 2 == 0:
+            print(f"Epoch {k} | Loss: {loss.data.item():.4f}")
+
+    # 4. 학습 후 결과 확인
+    final_pred = [model(x).data.item() for x in xs]
+    print("-" * 30)
+    print(f"Final Predictions: {[round(p, 4) for p in final_pred]}")
+    print(f"Target Values:     {ys}")
