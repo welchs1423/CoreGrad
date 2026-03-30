@@ -42,6 +42,27 @@ class Tensor:
 
         return out
 
+        # 뺄셈 (self - other)
+        def __sub__(self, other):
+            return self + (-other)
+
+        # 부호 반전 (-self) -> 뺄셈 구현을 위해 필요합니다.
+        def __neg__(self):
+            return self * -1
+
+        # 거듭제곱 (self ** other) -> MSE Loss 계산용
+        def __pow__(self, other):
+            assert isinstance(other, (int, float)), "현재는 숫자 지수만 지원합니다."
+            out = Tensor(self.data ** other, (self,), f'**{other}')
+
+            def _backward():
+                # x**n 미분: n * x**(n-1) * out.grad
+                self.grad += (other * self.data ** (other - 1)) * out.grad
+
+            out._backward = _backward
+
+            return out
+
     # 🚀 대망의 자동 미분 기능
     def backward(self):
         # 1. 위상 정렬 (Topological Sort)
