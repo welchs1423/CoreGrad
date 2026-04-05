@@ -143,6 +143,21 @@ class MLP(Module):
 
     def parameters(self):
         return [p for layer in self.layers for p in layer.parameters()]
+class SGD:
+    def __init__(self, parameters, lr=0.01):
+        # 학습할 모델의 파라미터 리스트와 학습률을 초기화합니다
+        self.parameters = parameters
+        self.lr = lr
+
+    def zero_grad(self):
+        # 파라미터의 기울기를 0으로 초기화합니다
+        for p in self.parameters:
+            p.grad = np.zeros_like(p.data)
+
+    def step(self):
+        # 역전파로 계산된 기울기를 사용하여 파라미터를 업데이트합니다
+        for p in self.parameters:
+            p.data -= self.lr * p.grad
 
 
 if __name__ == '__main__':
@@ -159,17 +174,21 @@ if __name__ == '__main__':
     epochs = 20
     learning_rate = 0.05
 
+    # Optimizer 객체를 생성하고 모델의 파라미터를 등록합니다
+    optimizer = SGD(model.parameters(), lr=learning_rate)
+
     print(f"--- 학습 시작 (Total Params: {len(model.parameters())}) ---")
 
     for k in range(epochs):
         ypred = [model(x) for x in xs]
         loss = sum(((yout - ygt) ** 2 for ygt, yout in zip(ys, ypred)), 0.0)
 
-        model.zero_grad()
+        # 기존 모델의 zero_grad 대신 Optimizer의 zero_grad를 호출합니다
+        optimizer.zero_grad()
         loss.backward()
 
-        for p in model.parameters():
-            p.data += -learning_rate * p.grad
+        # 직접 파라미터를 수정하던 루프를 지우고 step 메서드 하나로 처리합니다
+        optimizer.step()
 
         if k % 2 == 0:
             print(f"Epoch {k} | Loss: {loss.data.item():.4f}")
